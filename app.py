@@ -1,7 +1,6 @@
 import os
 import uuid
 import asyncio
-import aiohttp
 import logging
 import subprocess
 import whisper
@@ -160,7 +159,9 @@ def start_telegram_bot():
 
 async def telegram_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_text = update.message.text
+    logger.info(f"Отримано текстове повідомлення від користувача: {user_text}")
     reply = await get_ai_response(user_text, GROQ_MODELS[0][1])
+    logger.info(f"Відповідь AI: {reply}")
     await update.message.reply_text(reply or "❌ Помилка.")
 
 async def telegram_voice_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -177,7 +178,9 @@ async def telegram_voice_handler(update: Update, context: ContextTypes.DEFAULT_T
         await update.message.reply_text("Не вдалося розпізнати голос.")
         return
 
+    logger.info(f"Розпізнаний текст з голосового повідомлення: {text}")
     reply = await get_ai_response(text, GROQ_MODELS[0][1])
+    logger.info(f"Відповідь AI на голосове повідомлення: {reply}")
     await update.message.reply_text(reply or "❌ Помилка.")
 
 # Додаємо обробники
@@ -202,14 +205,17 @@ async def telegram_webhook():
         data = await request.get_data()
         text_data = data.decode("utf-8")
         logger.info(f"Webhook отримав: {text_data}")
-        update = Update.de_json(text_data, telegram_app.bot)
+
+        # Перетворюємо отримані дані в JSON
+        json_data = json.loads(text_data)  # Перетворення рядка в JSON
+        update = Update.de_json(json_data, telegram_app.bot)
+
         await telegram_app.update_queue.put(update)
         return jsonify({"ok": True})
     except Exception as e:
         logger.error(f"Помилка в webhook: {e}", exc_info=True)
         return jsonify({"ok": False, "error": str(e)}), 500
 
-    
 @app.route("/run_telegram_bot", methods=["POST"])
 async def run_telegram_bot_route():
     try:
@@ -219,12 +225,21 @@ async def run_telegram_bot_route():
     except Exception as e:
         return jsonify({"error": f"❌ Помилка запуску: {str(e)}"}), 500
 
-from telegram import Update
-from telegram.ext import ContextTypes
+# === Функція старту Telegram бота ===
+def start_telegram_bot():
+    # ВИМИКАЄМО проксі, якщо він не працює
+    os.environ.pop("HTTP_PROXY", None)
+    os.environ.pop("HTTPS_PROXY", None)
 
-async def telegram_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    text = update.message.text
-    await update.message.reply_text(f"Я отримав: {text}")
+    asyncio.set_event_loop(asyncio.new_event_loop())  # Створюємо новий event loop для цього потоку
+
+    app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
+
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, telegram_text_handler))
+    app.add_handler(MessageHandler(filters.VOICE, telegram_voice_handler))
+
+    print("✅ Telegram-бот запущено!")
+    app.run_polling()
 
 # ▶️ Запуск
 if __name__ == "__main__":
