@@ -2,6 +2,7 @@ import os
 import uuid
 import asyncio
 import logging
+import json
 import subprocess
 import whisper
 import threading
