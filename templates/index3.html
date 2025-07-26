@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8" />
+    <title>AI Асистент</title>
+    <script src="https://code.responsivevoice.org/responsivevoice.js?key=FmSmJQPV"></script>
+</head>
+<body style="background:#111; color:#eee; font-family:sans-serif; padding:20px;">
+    <h1>AI Асистент</h1>
+
+    <label for="model">Модель LLM:</label>
+    <select id="model" title="Вибір моделі">
+        {% for name, id in models %}
+        <option value="{{ id }}" {% if loop.first %}selected{% endif %}>{{ name }}</option>
+        {% endfor %}
+    </select>
+
+    <br /><br />
+    <textarea id="user-text" rows="5" cols="60" placeholder="Введіть текст..."></textarea><br />
+    <button onclick="sendText()">Відправити</button>
+
+    <h3>Відповідь:</h3>
+    <div id="response" style="white-space: pre-wrap; background:#222; padding:10px; min-height:100px;"></div>
+
+<script>
+async function sendText() {
+    const text = document.getElementById('user-text').value;
+    const model = document.getElementById('model').value;
+    if (!text) return alert("Введіть текст");
+
+    const resp = await fetch("/process_text", {
+        method: "POST",
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        body: `text=${encodeURIComponent(text)}&model=${encodeURIComponent(model)}`
+    });
+    const data = await resp.json();
+    if(data.text) {
+        document.getElementById('response').innerText = data.text;
+        responsiveVoice.speak(data.text, "Ukrainian Female");
+    } else if(data.error) {
+        document.getElementById('response').innerText = "Помилка: " + data.error;
+    }
+}
+</script>
+
+</body>
+</html>

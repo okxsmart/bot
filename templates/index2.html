@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8" />
+    <title>Асистент: Чат</title>
+    <style>
+        body { background: #111; color: #eee; font-family: sans-serif; padding: 20px; }
+        select, button, input { font-size: 16px; margin: 5px 10px 10px 0; }
+        .chat-box { background: #222; padding: 10px; border-radius: 6px; margin-bottom: 10px; }
+        .user { color: #89f; }
+        .bot { color: #6f6; }
+        audio { display: block; margin-top: 6px; }
+    </style>
+</head>
+<body>
+    <h2>🤖 Асистент: Чат з голосом і текстом</h2>
+
+    <label>Мова:</label>
+    <select id="language">
+        <option value="uk-UA">Українська</option>
+        <option value="en-US">English</option>
+        <option value="ru-RU">Русский</option>
+    </select>
+
+    <label>Голос:</label>
+    <select id="gender">
+        <option value="Жіночий">Жіночий</option>
+        <option value="Чоловічий">Чоловічий</option>
+    </select>
+
+    <label>Модель:</label>
+    <select id="model">
+        {% for name, model_id in models %}
+            <option value="{{ model_id }}">{{ name }}</option>
+        {% endfor %}
+    </select>
+
+    <br />
+
+    <button onclick="startVoiceRecording()">🎙️ Говорити</button>
+    <button onclick="stopRecording()" id="stopBtn" style="display:none;">⏹ Зупинити</button>
+    <br />
+    <input id="textInput" placeholder="Введіть текст..." size="50" />
+    <button onclick="sendText()">📤 Надіслати текст</button>
+
+    <hr />
+    <div id="chat"></div>
+
+    <script>
+        let mediaRecorder, audioChunks = [];
+
+        function addMessage(text, sender, audioUrl = null) {
+            const div = document.createElement("div");
+            div.classList.add("chat-box");
+            div.classList.add(sender);
+            div.innerHTML = `<b>${sender === "user" ? "🧑‍💻 Ви" : "🤖 Бот"}:</b> ${text}`;
+            if (audioUrl) {
+                const audio = document.createElement("audio");
+                audio.src = audioUrl;
+                audio.controls = true;
+                audio.autoplay = true;
+                div.appendChild(audio);
+            }
+            document.getElementById("chat").appendChild(div);
+            div.scrollIntoView({ behavior: "smooth" });
+        }
+
+        async function startVoiceRecording() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                mediaRecorder = new MediaRecorder(stream);
+                audioChunks = [];
+                mediaRecorder.start();
+
+                document.getElementById("stopBtn").style.display = "inline";
+                addMessage("🎤 Запис триває...", "user");
+
+                mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+                mediaRecorder.onstop = sendAudio;
+            } catch (err) {
+                alert("❌ Помилка доступу до мікрофону: " + err.message);
+            }
+        }
+
+        function stopRecording() {
+            if (mediaRecorder && mediaRecorder.state === "recording") {
+                mediaRecorder.stop();
+                document.getElementById("stopBtn").style.display = "none";
+            }
+        }
+
+        async function sendAudio() {
+            const blob = new Blob(audioChunks, { type: "audio/webm" });
+            const formData = new FormData();
+            formData.append("audio", blob, "recording.webm");
+            formData.append("language", document.getElementById("language").value);
+            formData.append("gender", document.getElementById("gender").value);
+            formData.append("model", document.getElementById("model").value);
+
+            try {
+                const res = await fetch("/process_audio", { method: "POST", body: formData });
+                const data = await res.json();
+                if (data.error) {
+                    addMessage("⚠️ " + data.error, "bot");
+                } else {
+                    addMessage(data.text, "bot", data.audio_url);
+                }
+            } catch (e) {
+                addMessage("❌ Сервер не відповів.", "bot");
+            }
+        }
+
+        async function sendText() {
+            const text = document.getElementById("textInput").value.trim();
+            if (!text) return;
+            addMessage(text, "user");
+            document.getElementById("textInput").value = "";
+
+            const formData = new FormData();
+            formData.append("text", text);
+            formData.append("gender", document.getElementById("gender").value);
+            formData.append("model", document.getElementById("model").value);
+
+            try {
+                const res = await fetch("/process_text", { method: "POST", body: formData });
+                const data = await res.json();
+                if (data.error) {
+                    addMessage("⚠️ " + data.error, "bot");
+                } else {
+                    addMessage(data.text, "bot", data.audio_url);
+                }
+            } catch (e) {
+                addMessage("❌ Сервер не відповів.", "bot");
+            }
+        }
+    </script>
+</body>
+</html>

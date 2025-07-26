@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Groq Voice Bot — Асистент</title>
+  <script src="https://code.responsivevoice.org/responsivevoice.js?key=FmSmJQPV"></script>
+  <style>
+    body {
+      background: #111;
+      color: #eee;
+      font-family: sans-serif;
+      margin: 20px;
+    }
+    h1 {
+      color: #0f0;
+      margin-bottom: 10px;
+    }
+    #chat-box {
+      background: #222;
+      border: 1px solid #444;
+      height: 400px;
+      overflow-y: auto;
+      padding: 10px;
+      margin-bottom: 10px;
+      white-space: pre-wrap;
+    }
+    .message {
+      margin-bottom: 8px;
+      padding: 6px 10px;
+      border-radius: 6px;
+      max-width: 80%;
+    }
+    .user {
+      background: #0a84ff22;
+      color: #aaf;
+      align-self: flex-end;
+      margin-left: auto;
+    }
+    .bot {
+      background: #28a74533;
+      color: #8f8;
+      align-self: flex-start;
+      margin-right: auto;
+    }
+    #controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+    select, textarea, button {
+      background: #222;
+      color: #eee;
+      border: 1px solid #555;
+      padding: 6px;
+      font-size: 1rem;
+      border-radius: 4px;
+    }
+    select {
+      min-width: 180px;
+    }
+    textarea {
+      width: 100%;
+      resize: vertical;
+      min-height: 70px;
+    }
+    button {
+      cursor: pointer;
+      min-width: 120px;
+    }
+    #status {
+      font-size: 0.9rem;
+      color: #ccc;
+      margin-bottom: 6px;
+      min-height: 20px;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>🤖 Groq Voice Bot — Асистент</h1>
+	<div id="controls">
+	  <label for="language">Мова розпізнавання:</label>
+	  <select id="language" title="Мова для голосового введення">
+		<option value="uk-UA" selected>Українська 🇺🇦</option>
+		<option value="ru-RU">Російська 🇷🇺</option>
+		<option value="en-US">Англійська 🇬🇧</option>
+	  </select>
+
+	  <label for="model">Модель LLM:</label>
+	  <select id="model" title="Вибір моделі">
+		<option value="llama3-70b-8192" selected>LLaMA 3 (70B)</option>
+		<option value="llama3-8b-8192">LLaMA 3 (8B)</option>
+		<option value="meta-llama/llama-4-maverick-17b-128e-instruct">LLaMA 4 Maverick (17B)</option>
+		<option value="deepseek-r1-distill-llama-70b">DeepSeek Distill 70B</option>
+		<option value="gemma2-9b-it">Gemma 2 (9B IT)</option>
+	  </select>
+
+	  <!-- Приховуємо вибір голосу, оскільки він автоматично оновлюється залежно від мови розпізнавання -->
+	  <label for="voice" style="display:none;">Голос озвучення:</label>
+	  <select id="voice" title="Голос для озвучення відповіді" style="display:none;">
+		<option value="Ukrainian Female" selected>Українська</option>
+		<option value="Russian Female">Російська</option>
+		<option value="English Female">Англійська</option>
+	  </select>
+	</div>
+
+
+  <div id="chat-box" aria-live="polite" aria-label="Історія чату"></div>
+
+  <div id="status"></div>
+
+  <textarea id="user-input" placeholder="Введіть текст або натисніть 🎙️ і говоріть..." rows="3" aria-label="Поле введення повідомлення"></textarea>
+
+  <div id="controls" style="margin-top: 8px;">
+    <button id="btn-send">📩 Відправити</button>
+    <button id="btn-voice">🎙️ Голосом</button>
+    <button id="btn-clear">🗑️ Очистити чат</button>
+    <button id="btn-speak">🔊 Відповісти голосом</button>
+  </div>
+  <!-- Telegram Бот -->
+  <div id="telegram-section">
+    <h2>🤖 Telegram Bot</h2>
+    <button id="run-telegram-btn">▶️ Запустити Telegram Бота</button>
+    <div id="telegram-status"></div>
+    🌐 <a href="https://t.me/RozumnykSmartBot" target="_blank" class="telegram-link">@RozumnykSmartBot</a>
+  </div>
+
+  <script>
+    // ✅ ВСІ скрипти JS збережені без змін
+    // Просто додано правильну логіку до кнопки Telegram
+    const runTelegramBtn = document.getElementById("run-telegram-btn");
+    runTelegramBtn.addEventListener("click", async () => {
+      const telegramStatusDiv = document.getElementById("telegram-status");
+      telegramStatusDiv.textContent = "⏳ Запуск Telegram Бота...";
+      try {
+        const response = await fetch("/run_telegram_bot", { method: "POST" });
+        const data = await response.json();
+        telegramStatusDiv.textContent = response.ok ? data.message : `❌ ${data.error}`;
+      } catch (err) {
+        telegramStatusDiv.textContent = `❌ ${err.message}`;
+      }
+    });
+
+    // Далі залишаються всі функції: appendMessage, speak, sendMessage, voice input
+    // Ти можеш вставити їх із попередньої версії – вони вже добрі
+  </script>
+ <script>
+  const chatBox = document.getElementById("chat-box");
+  const userInput = document.getElementById("user-input");
+  const btnSend = document.getElementById("btn-send");
+  const btnVoice = document.getElementById("btn-voice");
+  const btnClear = document.getElementById("btn-clear");
+  const btnSpeak = document.getElementById("btn-speak");
+  const languageSelect = document.getElementById("language");
+  const modelSelect = document.getElementById("model");
+  const voiceSelect = document.getElementById("voice");
+  const statusDiv = document.getElementById("status");
+
+  const API_KEY = "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"; // Замінити на свій ключ!
+
+  let lastBotResponse = "";
+  let recognition = null;
+  let recognizing = false;
+
+  // Функція додавання повідомлення у чат
+  function appendMessage(sender, text) {
+    const msgDiv = document.createElement("div");
+    msgDiv.className = "message " + (sender === "user" ? "user" : "bot");
+    msgDiv.textContent = (sender === "user" ? "🧑: " : "🤖: ") + text;
+    chatBox.appendChild(msgDiv);
+    chatBox.scrollTop = chatBox.scrollHeight;
+  }
+
+  // Відправка повідомлення на сервер (Groq API)
+  async function sendMessage(text) {
+    appendMessage("user", text);
+    statusDiv.textContent = "⏳ Очікую відповідь...";
+    btnSend.disabled = true;
+    btnVoice.disabled = true;
+
+    const model = modelSelect.value;
+    const lang = languageSelect.value;
+    const systemPrompt = lang.startsWith("ru") 
+      ? "Ты полезный ассистент. Отвечай четко и кратко, без лишних слов." 
+      : lang.startsWith("en") 
+        ? "You are a helpful assistant. Please respond clearly and concisely, no filler words." 
+        : "Ти корисний асистент. Відповідай чітко і коротко, без зайвих слів.";
+
+    const payload = {
+      model,
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: text }
+      ],
+      temperature: 0.3,
+      max_tokens: 512
+    };
+
+    try {
+      const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Authorization": "Bearer " + API_KEY,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (!res.ok) {
+        throw new Error("Помилка API: " + res.status);
+      }
+
+      const data = await res.json();
+      const botText = data.choices?.[0]?.message?.content?.trim() || "⚠️ Порожня відповідь";
+
+      appendMessage("bot", botText);
+      lastBotResponse = botText;
+      statusDiv.textContent = "";
+
+      // Автоматично озвучити відповідь
+      speak(botText, lang);
+    } catch (err) {
+      appendMessage("bot", "⚠️ Помилка: " + err.message);
+      statusDiv.textContent = "";
+    } finally {
+      btnSend.disabled = false;
+      btnVoice.disabled = false;
+    }
+  }
+
+  // Функція для оновлення голосу відповідно до вибору мови
+  function updateVoiceOptions() {
+    const lang = languageSelect.value;
+
+    if (lang === "uk-UA") {
+      voiceSelect.value = "Ukrainian Female"; // Вибір українського голосу
+    } else if (lang === "ru-RU") {
+      voiceSelect.value = "Russian Female"; // Вибір російського голосу
+    } else if (lang === "en-US") {
+      voiceSelect.value = "English Female"; // Вибір англійського голосу
+    }
+  }
+
+  // Оновлюємо вибір голосу при зміні мови
+  languageSelect.addEventListener("change", updateVoiceOptions);
+
+  // Початкове оновлення голосу
+  updateVoiceOptions();
+
+  // Функція озвучення тексту
+  function speak(text, lang) {
+    const voiceMap = {
+      "uk-UA": "Ukrainian Female",    // Для української мови
+      "ru-RU": "Russian Female",      // Для російської мови
+      "en-US": "UK English Female"    // Для англійської мови
+    };
+    
+    const voiceName = voiceMap[lang] || "Ukrainian Female"; // За замовчуванням — українська мова
+    
+    if (responsiveVoice.voiceSupport()) {
+      responsiveVoice.speak(text, voiceName);  // Озвучує текст на відповідній мові
+    }
+  }
+
+  // Обробка кнопки "Відправити"
+  btnSend.addEventListener("click", () => {
+    const text = userInput.value.trim();
+    if (text) {
+      userInput.value = "";
+      sendMessage(text);
+    }
+  });
+
+  // Обробка клавіші Enter (без Shift) для відправки
+  userInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      btnSend.click();
+    }
+  });
+
+  // Обробка кнопки "Очистити чат"
+  btnClear.addEventListener("click", () => {
+    chatBox.innerHTML = "";
+    lastBotResponse = "";
+    statusDiv.textContent = "";
+  });
+
+  // Обробка кнопки "Відповісти голосом"
+  btnSpeak.addEventListener("click", () => {
+    if (lastBotResponse) {
+      speak(lastBotResponse, languageSelect.value);
+    }
+  });
+
+  // Ініціалізація голосового введення
+  btnVoice.addEventListener("click", () => {
+    if (!('webkitSpeechRecognition' in window)) {
+      alert("Голосове введення не підтримується вашим браузером.");
+      return;
+    }
+
+    if (recognizing) {
+      recognition.stop();
+      return;
+    }
+
+    recognition = new webkitSpeechRecognition();
+    recognition.lang = languageSelect.value;
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+
+    recognition.onstart = () => {
+      recognizing = true;
+      statusDiv.textContent = "🎤 Говоріть...";
+      btnVoice.textContent = "■ Зупинити";
+      btnSend.disabled = true;
+    };
+
+    recognition.onresult = (event) => {
+      const transcript = event.results[0][0].transcript;
+      userInput.value = transcript;
+      // Автоматична відправка після розпізнавання
+      recognition.stop();
+      sendMessage(transcript);
+    };
+
+    recognition.onerror = (event) => {
+      alert("Помилка розпізнавання голосу: " + event.error);
+      recognizing = false;
+      btnVoice.textContent = "🎙️ Голосом";
+      btnSend.disabled = false;
+      statusDiv.textContent = "";
+    };
+
+    recognition.onend = () => {
+      recognizing = false;
+      btnVoice.textContent = "🎙️ Голосом";
+      btnSend.disabled = false;
+      if (!userInput.value) {
+        statusDiv.textContent = "";
+      }
+    };
+
+    recognition.start();
+  });
+
+</script>
+
+</body>
+</html>
