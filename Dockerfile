@@ -1,9 +1,10 @@
-# Попередній крок (наприклад FROM python:3.10-slim)
+# Базовий імедж
 FROM python:3.10-slim
 
-# Встановлення залежностей ОС, включно з git
+# Встановлення системних залежностей, включно з ffmpeg
 RUN apt-get update && apt-get install -y \
     git \
+    ffmpeg \
     build-essential \
     pkg-config \
     clang \
@@ -16,8 +17,8 @@ COPY . .
 RUN sed '/-e/d' requirements.txt | pip install -r /dev/stdin
 RUN pip install -r requirements.txt
 
-# Відкриття порту
+# Відкриття порту (можливо потрібно, якщо ти запускаєш Quart/FastAPI)
 EXPOSE 8080
 
-# Запуск
+# Команда запуску
 CMD ["python", "app.py"]
