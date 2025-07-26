@@ -5,7 +5,6 @@ import logging
 import json
 import subprocess
 import whisper
-import threading
 import aiohttp
 from quart import Quart, render_template, request, jsonify
 from dotenv import load_dotenv
@@ -192,7 +191,7 @@ async def startup():
 async def shutdown():
     await telegram_app.stop()
     logger.info("🛑 Webhook зупинено")
-    
+
 @app.route("/webhook", methods=["POST"])
 async def telegram_webhook():
     try:
@@ -209,24 +208,6 @@ async def telegram_webhook():
     except Exception as e:
         logger.error(f"Помилка в webhook: {e}", exc_info=True)
         return jsonify({"ok": False, "error": str(e)}), 500
-
-# === Функція старту Telegram бота ===
-def start_telegram_bot():
-    os.environ.pop("HTTP_PROXY", None)
-    os.environ.pop("HTTPS_PROXY", None)
-
-    asyncio.set_event_loop(asyncio.new_event_loop())  # Створюємо новий event loop
-
-    telegram_app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
-
-    telegram_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, telegram_text_handler))
-    telegram_app.add_handler(MessageHandler(filters.VOICE, telegram_voice_handler))
-
-    logger.info("✅ Telegram-бот запущено!")
-    telegram_app.run_polling()  # Запуск бота на polling режимі (можна замінити на webhook якщо потрібно)
-
-# Запуск Telegram бота в окремому потоці
-threading.Thread(target=start_telegram_bot).start()
 
 # ▶️ Запуск
 if __name__ == "__main__":
