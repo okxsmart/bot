@@ -5,3 +5,4 @@ pydub
 git+https://github.com/openai/whisper.git
 python-telegram-bot==20.8
 gtts
+aiohttp
