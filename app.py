@@ -189,16 +189,22 @@ telegram_app.add_handler(MessageHandler(filters.VOICE, telegram_voice_handler))
 
 @app.before_serving
 async def startup():
-    await telegram_app.initialize()
-    await telegram_app.bot.set_webhook(url=WEBHOOK_URL)
-    await telegram_app.start()
-    logger.info(f"📡 Webhook встановлено: {WEBHOOK_URL}")
-
+    # Логування URL перед встановленням Webhook
+    logger.info(f"Встановлення Webhook: {WEBHOOK_URL}")
+    
+    try:
+        await telegram_app.bot.set_webhook(url=WEBHOOK_URL)
+        await telegram_app.start()
+        logger.info(f"📡 Webhook успішно встановлено: {WEBHOOK_URL}")
+    except Exception as e:
+        logger.error(f"Помилка при встановленні Webhook: {e}", exc_info=True)
+        raise Exception("Не вдалося встановити Webhook")
+        
 @app.after_serving
 async def shutdown():
     await telegram_app.stop()
     logger.info("🛑 Webhook зупинено")
-
+    
 @app.route("/webhook", methods=["POST"])
 async def telegram_webhook():
     try:
