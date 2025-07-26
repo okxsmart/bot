@@ -5,16 +5,15 @@ import logging
 import json
 import subprocess
 import whisper
+import multiprocessing
 import aiohttp
 from quart import Quart, render_template, request, jsonify
 from dotenv import load_dotenv
 from pydub import AudioSegment
 from telegram import Update
-from telegram.ext import (
-    ApplicationBuilder, MessageHandler, ContextTypes, filters
-)
+from telegram.ext import Application, ApplicationBuilder, MessageHandler, ContextTypes, filters
 
-# === 🔑 Завантаження .env ===
+# === Завантаження .env ===
 load_dotenv()
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
@@ -191,7 +190,7 @@ async def startup():
 async def shutdown():
     await telegram_app.stop()
     logger.info("🛑 Webhook зупинено")
-
+    
 @app.route("/webhook", methods=["POST"])
 async def telegram_webhook():
     try:
@@ -209,7 +208,24 @@ async def telegram_webhook():
         logger.error(f"Помилка в webhook: {e}", exc_info=True)
         return jsonify({"ok": False, "error": str(e)}), 500
 
-# ▶️ Запуск
+# === Запуск в окремому процесі ===
+def start_telegram_bot():
+    os.environ.pop("HTTP_PROXY", None)
+    os.environ.pop("HTTPS_PROXY", None)
+
+    telegram_app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
+
+    telegram_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, telegram_text_handler))
+    telegram_app.add_handler(MessageHandler(filters.VOICE, telegram_voice_handler))
+
+    logger.info("✅ Telegram-бот запущено!")
+    telegram_app.run_polling()  # Запуск бота на polling режимі (можна замінити на webhook якщо потрібно)
+
+# Запуск Telegram бота в окремому процесі
 if __name__ == "__main__":
+    p = multiprocessing.Process(target=start_telegram_bot)
+    p.start()
+
+    # Запуск сервера Webhook
     port = int(os.environ.get("PORT", 8080))
     app.run(host="0.0.0.0", port=port)
