@@ -6,6 +6,7 @@ import json
 import subprocess
 import whisper
 import threading
+import aiohttp
 from quart import Quart, render_template, request, jsonify
 from dotenv import load_dotenv
 from pydub import AudioSegment
