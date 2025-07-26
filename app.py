@@ -62,10 +62,7 @@ async def process_audio():
         if len(audio) < 1000:
             return jsonify({"error": "Аудіо занадто коротке"}), 400
 
-        subprocess.run([
-            FFMPEG_PATH, "-i", temp_input,
-            "-ac", "1", "-ar", "16000", temp_output
-        ], check=True)
+        subprocess.run([FFMPEG_PATH, "-i", temp_input, "-ac", "1", "-ar", "16000", temp_output], check=True)
 
         loop = asyncio.get_running_loop()
         result = await loop.run_in_executor(None, lambda: whisper_model.transcribe(temp_output, language="uk"))
@@ -182,9 +179,7 @@ telegram_app.add_handler(MessageHandler(filters.VOICE, telegram_voice_handler))
 
 @app.before_serving
 async def startup():
-    # Логування URL перед встановленням Webhook
     logger.info(f"Встановлення Webhook: {WEBHOOK_URL}")
-    
     try:
         await telegram_app.bot.set_webhook(url=WEBHOOK_URL)
         await telegram_app.start()
@@ -217,19 +212,21 @@ async def telegram_webhook():
 
 # === Функція старту Telegram бота ===
 def start_telegram_bot():
-    # ВИМИКАЄМО проксі, якщо він не працює
     os.environ.pop("HTTP_PROXY", None)
     os.environ.pop("HTTPS_PROXY", None)
 
-    asyncio.set_event_loop(asyncio.new_event_loop())  # Створюємо новий event loop для цього потоку
+    asyncio.set_event_loop(asyncio.new_event_loop())  # Створюємо новий event loop
 
-    app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
+    telegram_app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
 
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, telegram_text_handler))
-    app.add_handler(MessageHandler(filters.VOICE, telegram_voice_handler))
+    telegram_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, telegram_text_handler))
+    telegram_app.add_handler(MessageHandler(filters.VOICE, telegram_voice_handler))
 
-    print("✅ Telegram-бот запущено!")
-    app.run_polling()
+    logger.info("✅ Telegram-бот запущено!")
+    telegram_app.run_polling()  # Запуск бота на polling режимі (можна замінити на webhook якщо потрібно)
+
+# Запуск Telegram бота в окремому потоці
+threading.Thread(target=start_telegram_bot).start()
 
 # ▶️ Запуск
 if __name__ == "__main__":
