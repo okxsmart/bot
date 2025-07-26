@@ -149,15 +149,6 @@ async def get_openai_response(prompt, model):
 # === ✅ Telegram Webhook Bot ===
 telegram_app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
 
-def start_telegram_bot():
-    import asyncio
-
-    loop = asyncio.new_event_loop()  # Створюємо новий event loop для цього потоку
-    asyncio.set_event_loop(loop)     # Встановлюємо його як поточний
-
-    loop.run_until_complete(telegram_app.run_polling())
-
-
 async def telegram_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_text = update.message.text
     logger.info(f"Отримано текстове повідомлення від користувача: {user_text}")
@@ -222,15 +213,6 @@ async def telegram_webhook():
     except Exception as e:
         logger.error(f"Помилка в webhook: {e}", exc_info=True)
         return jsonify({"ok": False, "error": str(e)}), 500
-
-@app.route("/run_telegram_bot", methods=["POST"])
-async def run_telegram_bot_route():
-    try:
-        thread = threading.Thread(target=start_telegram_bot, daemon=True)
-        thread.start()
-        return jsonify({"message": "✅ Telegram Bot запущено у фоновому режимі!"})
-    except Exception as e:
-        return jsonify({"error": f"❌ Помилка запуску: {str(e)}"}), 500
 
 # === Функція старту Telegram бота ===
 def start_telegram_bot():
